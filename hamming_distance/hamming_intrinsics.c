@@ -5,6 +5,7 @@
 #define MAX_STR 256
 #define CHUNK_SIZE 16
 #define MATCH_VALUE 0xFF
+#define ITERS MATCH_VALUE / CHUNK_SIZE
 
 /*
  * Algorithm:
@@ -49,7 +50,7 @@ int min(int x, int y)
     return x > y ? y : x;
 }
 
-int hamming_dist_chunk(const char* str_ptr1, const char* str_ptr2)
+inline int hamming_dist_chunk(const char* str_ptr1, const char* str_ptr2)
 {
     const __m128i str_xmm1         = _mm_loadu_si128((const __m128i_u *) str_ptr1);
     const __m128i str_xmm2         = _mm_loadu_si128((const __m128i_u *) str_ptr2);
@@ -61,8 +62,33 @@ int hamming_dist_chunk(const char* str_ptr1, const char* str_ptr2)
     const size_t  sum_upper        = _mm_extract_epi16(sum_matches, 0x4);
     return CHUNK_SIZE - (sum_lower + sum_upper) / MATCH_VALUE;
 }
-
+/*
+ * This function handles the narrow case, where the two arrays are both of lenghts exactly 256
+ * and have trailing 0's in case the string is shorter than 256 characters
+ */
 int hamming_dist(char str1[MAX_STR], char str2[MAX_STR])
+{
+    size_t dist = 0;
+    char* str_ptr1              = str1;
+    char* str_ptr2              = str2;
+    for (size_t i = 0;
+            i < ITERS;
+            str_ptr1 += CHUNK_SIZE,
+            str_ptr2 += CHUNK_SIZE,
+            ++i)
+    {
+        dist += hamming_dist_chunk(str_ptr1, str_ptr2);
+    }
+
+    return dist;
+}
+
+/*
+ * The following function handles a more general case
+ * where the array is not assumed to be of a length divisible by 16, and is not assumed to have trailing zeros.
+ * 
+ */
+int hamming_dist_not_assuming_zeroed_garbage(const char* str1, const char* str2)
 {
     const size_t len1           = strlen(str1);
     const size_t len2           = strlen(str2);
@@ -71,8 +97,8 @@ int hamming_dist(char str1[MAX_STR], char str2[MAX_STR])
     size_t dist                 = abs((int)len1 - (int)len2);
     const size_t iters          = len_min / CHUNK_SIZE; // in case there's a remainder
 
-    char* str_ptr1              = str1;
-    char* str_ptr2              = str2;
+    const char* str_ptr1              = str1;
+    const char* str_ptr2              = str2;
 
     for (size_t i = 0;
             i < iters;
