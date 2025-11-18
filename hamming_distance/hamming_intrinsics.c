@@ -50,7 +50,7 @@ int min(int x, int y)
     return x > y ? y : x;
 }
 
-inline int hamming_dist_chunk(const char* str_ptr1, const char* str_ptr2)
+int hamming_dist_chunk(const char* str_ptr1, const char* str_ptr2)
 {
     const __m128i str_xmm1         = _mm_loadu_si128((const __m128i_u *) str_ptr1);
     const __m128i str_xmm2         = _mm_loadu_si128((const __m128i_u *) str_ptr2);
